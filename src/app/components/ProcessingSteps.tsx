@@ -159,34 +159,18 @@ export function ProcessingSummary({ steps, isExpanded, onToggle }: ProcessingSum
     <div className="mt-2">
       <button
         onClick={onToggle}
-        className="flex items-center gap-2 text-gray-900 hover:text-gray-700 transition-colors group"
+        className="flex items-center gap-1.5 text-gray-400 hover:text-gray-500 transition-colors group"
       >
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 20 20"
-          fill="none"
-          className="text-green-600 flex-shrink-0"
-        >
-          <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5" />
-          <path
-            d="M6 10L9 13L14 8"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <span>
+        <span className="text-green-500 text-xs">✓</span>
+        <span className="text-xs">
           Processamento concluído ({steps.length} etapas)
         </span>
-        
         <motion.svg
-          width="16"
-          height="16"
+          width="12"
+          height="12"
           viewBox="0 0 16 16"
           fill="none"
-          className="text-gray-400 group-hover:text-gray-600"
+          className="text-gray-300 group-hover:text-gray-400"
           animate={{ rotate: isExpanded ? 180 : 0 }}
           transition={{ duration: 0.2 }}
         >
@@ -209,28 +193,11 @@ export function ProcessingSummary({ steps, isExpanded, onToggle }: ProcessingSum
             transition={{ duration: 0.3 }}
             className="overflow-visible"
           >
-            <div className="mt-3 ml-7 space-y-2 overflow-visible">
+            <div className="mt-2 ml-7 space-y-1 overflow-visible">
               {steps.map((step, index) => (
-                <div key={index} className="flex items-center gap-2 text-sm text-gray-600">
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 12 12"
-                    fill="none"
-                    className="text-green-500 flex-shrink-0"
-                  >
-                    <path
-                      d="M2 6L5 9L10 3"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+                <div key={index} className="flex items-baseline gap-1.5 text-sm text-gray-400">
+                  <span className="flex-shrink-0 text-gray-300">›</span>
                   <span>{step}</span>
-                  {(step.startsWith('Sugerindo') || step.startsWith('Criando') || step.startsWith('Configurando')) && (
-                    <DataSourceBadge source="inferred" />
-                  )}
                 </div>
               ))}
             </div>

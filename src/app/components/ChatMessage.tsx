@@ -11,7 +11,7 @@ import { CamposFaltantesForm } from "./CamposFaltantesForm";
 import { RobotPresence } from "./RobotPresence";
 import type { RobotState } from "./RobotPresence";
 import { ChatMessage as ChatMessageType } from "../types/job";
-import { Check, AlertCircle, Settings2, Search, ChevronDown, Play, ExternalLink } from "lucide-react";
+import { Check, AlertCircle, Settings2, Search, ChevronDown, Play, ArrowRight, FileText, MessageSquare, BookOpen, Bot, Zap, GitBranch } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 interface ChatMessageProps {
@@ -21,20 +21,35 @@ interface ChatMessageProps {
   onStepChange?: (step: string) => void;
   showRobot?: boolean;
   robotState?: RobotState;
-  onOpenRecursos?: () => void;
+  onOpenRecursos?: (key?: string) => void;
 }
 
-// Função para renderizar texto com markdown básico (negrito)
-function renderMessageContent(content: string) {
-  const processedContent = content.replace(':hand:', '👋');
-  const parts = processedContent.split(/(\*\*.*?\*\*)/g);
-  return parts.map((part, index) => {
+// Função para renderizar texto com markdown básico (negrito + bullet points)
+function renderBoldParts(text: string, keyPrefix: string): React.ReactNode[] {
+  return text.split(/(\*\*.*?\*\*)/g).map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
-      const boldText = part.slice(2, -2);
-      return <strong key={index} className="font-semibold">{boldText}</strong>;
+      return <strong key={`${keyPrefix}-b${i}`} className="font-semibold">{part.slice(2, -2)}</strong>;
     }
     return part;
   });
+}
+
+function renderMessageContent(content: string): React.ReactNode[] {
+  const processedContent = content.replace(':hand:', '👋');
+  const lines = processedContent.split('\n');
+  const result: React.ReactNode[] = [];
+
+  lines.forEach((line, i) => {
+    if (i > 0) result.push('\n');
+    if (line.startsWith('* ')) {
+      result.push('• ');
+      result.push(...renderBoldParts(line.slice(2), `bullet-${i}`));
+    } else {
+      result.push(...renderBoldParts(line, `line-${i}`));
+    }
+  });
+
+  return result;
 }
 
 // ─── JD processing steps ──────────────────────────────────────────────────────
@@ -55,6 +70,12 @@ export const FIRST_ROUND_STEPS = [
   "Identificando senioridade...",
 ];
 
+export const REQUISITION_ROUND2_STEPS = [
+  "Preenchendo modelo de contratação",
+  "Preenchendo localização",
+  "Preenchendo modelo de trabalho",
+];
+
 // Static waveform bars (used in audio bubble)
 const WAVEFORM_BARS = [3,7,13,20,28,34,24,18,30,40,34,22,14,8,20,32,40,26,14,10,22,34,38,28,18,24,36,30,18,12];
 
@@ -71,11 +92,125 @@ function AudioWaveformBars({ color = 'rgba(255,255,255,0.7)' }: { color?: string
   );
 }
 
+// ── Confirmação de extração round 2 ──────────────────────────────────────────
+
+export function ConfirmacaoRound2Form({
+  initial,
+  onSubmit,
+}: {
+  initial: {
+    tipoContrato: string;
+    pais: string;
+    estado: string;
+    cidade: string;
+    modeloTrabalho: string;
+    salarioMinimo?: string;
+    salarioMaximo?: string;
+  };
+  onSubmit?: (data: {
+    tipoContrato: string;
+    localizacao: string;
+    modeloTrabalho: string;
+    salarioMinimo?: string;
+    salarioMaximo?: string;
+  }) => void;
+}) {
+  const [tipoContrato, setTipoContrato] = useState(initial.tipoContrato);
+  const [pais, setPais] = useState(initial.pais);
+  const [estado, setEstado] = useState(initial.estado);
+  const [cidade, setCidade] = useState(initial.cidade);
+  const [modeloTrabalho, setModeloTrabalho] = useState(initial.modeloTrabalho);
+  const [salarioMinimo, setSalarioMinimo] = useState(initial.salarioMinimo ?? '');
+  const [salarioMaximo, setSalarioMaximo] = useState(initial.salarioMaximo ?? '');
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = () => {
+    setSaved(true);
+    const localizacao = [cidade, estado, pais].filter(Boolean).join(', ');
+    onSubmit?.({ tipoContrato, localizacao, modeloTrabalho, salarioMinimo, salarioMaximo });
+  };
+
+  const modeloOpcoes = ['Presencial', 'Híbrido', 'Remoto'];
+  const inputCls = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-50 disabled:text-gray-500";
+
+  return (
+    <div className="mt-3 max-w-sm">
+      <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+        <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Confirme os dados</p>
+
+        {/* Salário */}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Salário da vaga</label>
+            <input type="text" value={salarioMinimo} onChange={e => setSalarioMinimo(e.target.value)} disabled={saved} placeholder="R$ 10.000" className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Salário máximo</label>
+            <input type="text" value={salarioMaximo} onChange={e => setSalarioMaximo(e.target.value)} disabled={saved} placeholder="R$ 15.000" className={inputCls} />
+          </div>
+        </div>
+
+        {/* Modelo de contratação */}
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Modelo de contratação</label>
+          <input type="text" value={tipoContrato} onChange={e => setTipoContrato(e.target.value)} disabled={saved} className={inputCls} />
+        </div>
+
+        {/* Localização */}
+        <div className="grid grid-cols-3 gap-2">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">País</label>
+            <input type="text" value={pais} onChange={e => setPais(e.target.value)} disabled={saved} className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Estado</label>
+            <input type="text" value={estado} onChange={e => setEstado(e.target.value)} disabled={saved} className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Cidade</label>
+            <input type="text" value={cidade} onChange={e => setCidade(e.target.value)} disabled={saved} className={inputCls} />
+          </div>
+        </div>
+
+        {/* Modelo de trabalho */}
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Modelo de trabalho</label>
+          <div className="flex gap-0 rounded-lg overflow-hidden border border-gray-300">
+            {modeloOpcoes.map(opt => (
+              <button
+                key={opt}
+                type="button"
+                disabled={saved}
+                onClick={() => setModeloTrabalho(opt)}
+                className={`flex-1 py-2 text-sm transition-colors ${
+                  modeloTrabalho === opt
+                    ? 'bg-purple-600 text-white font-medium'
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                } ${saved ? 'cursor-default' : ''}`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {!saved ? (
+          <button type="button" onClick={handleSave} className="w-full py-2 rounded-lg text-sm bg-purple-600 hover:bg-purple-700 text-white transition-colors font-medium">
+            Confirmar
+          </button>
+        ) : (
+          <p className="text-xs text-green-600 font-medium text-center">✓ Dados confirmados</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ChatMessage({ message, onOptionClick, onToggleProcessing, onStepChange, showRobot, robotState, onOpenRecursos }: ChatMessageProps) {
   const isAgent = message.type === 'agent';
   const [locationData, setLocationData] = useState({ pais: '', estado: '', cidade: '' });
   const [questoesExpanded, setQuestoesExpanded] = useState(false);
-  const [camposFaltantesExpanded, setCamposFaltantesExpanded] = useState(false);
+  const [camposFaltantesExpanded, setCamposFaltantesExpanded] = useState(message.camposFaltantesAutoExpand ?? false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedLabel, setSelectedLabel] = useState('');
@@ -140,7 +275,7 @@ export function ChatMessage({ message, onOptionClick, onToggleProcessing, onStep
           {/* Robot beside agent message when processing */}
           {isAgent && showRobot && (
             <div className="flex-shrink-0 mt-1">
-              <RobotPresence state="typing" size={40} />
+              <RobotPresence state="idle" size={40} />
             </div>
           )}
 
@@ -204,22 +339,23 @@ export function ChatMessage({ message, onOptionClick, onToggleProcessing, onStep
             {/* Painel de distribuição JD — replaced by resource chips */}
             {message.distribuicaoPainel && (
               <div className="mt-3">
-                <p className="text-xs text-gray-500 mb-2">Acesse os recursos configurados:</p>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    { label: 'Critérios de currículo', emoji: '📄' },
-                    { label: 'Formulário', emoji: '💬' },
-                    { label: 'Kits e scorecards', emoji: '📋' },
-                    { label: 'Agente na triagem', emoji: '🤖' },
+                    { label: 'Critérios de currículo', icon: <FileText className="w-3.5 h-3.5" />, key: 'curriculo' },
+                    { label: 'Formulário', icon: <MessageSquare className="w-3.5 h-3.5" />, key: 'formulario' },
+                    { label: 'Kits e scorecards', icon: <BookOpen className="w-3.5 h-3.5" />, key: 'kit' },
+                    { label: 'Agente na triagem', icon: <Bot className="w-3.5 h-3.5" />, key: 'agente' },
+                    { label: 'Automações de reprovação', icon: <Zap className="w-3.5 h-3.5" />, key: 'automacoes' },
+                    { label: 'Etapas do processo', icon: <GitBranch className="w-3.5 h-3.5" />, key: 'etapas' },
                   ].map(chip => (
                     <button
                       key={chip.label}
-                      onClick={() => onOpenRecursos?.()}
+                      onClick={() => onOpenRecursos?.(chip.key)}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs border border-purple-200 bg-purple-50 text-purple-700 rounded-full hover:bg-purple-100 hover:border-purple-300 transition-colors"
                     >
-                      <span>{chip.emoji}</span>
+                      {chip.icon}
                       {chip.label}
-                      <ExternalLink className="w-3 h-3 opacity-60" />
+                      <ArrowRight className="w-3 h-3 opacity-60" />
                     </button>
                   ))}
                 </div>
@@ -253,28 +389,16 @@ export function ChatMessage({ message, onOptionClick, onToggleProcessing, onStep
               )
             )}
 
-            {/* Campos faltantes — form unificado */}
-            {message.camposFaltantesForm && message.onCamposFaltantesSubmit && (
-              camposFaltantesExpanded ? (
-                <div className="mt-3">
-                  <CamposFaltantesForm
-                    onSubmit={message.onCamposFaltantesSubmit}
-                    initialRequisicao={message.camposFaltantesInitial?.requisicao}
-                    initialPosicoes={message.camposFaltantesInitial?.posicoes}
-                    hidePosicoes={message.camposFaltantesInitial?.hidePosicoes}
-                  />
-                </div>
-              ) : (
-                <div className="mt-3">
-                  <button
-                    onClick={() => setCamposFaltantesExpanded(true)}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm"
-                  >
-                    <Settings2 className="w-4 h-4" />
-                    Completar dados da vaga →
-                  </button>
-                </div>
-              )
+            {/* Draft button inline */}
+            {message.hasDraftButton && (
+              <div className="mt-4">
+                <button
+                  onClick={() => onOptionClick?.('go_to_draft')}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-colors text-sm font-medium"
+                >
+                  Criar rascunho da vaga →
+                </button>
+              </div>
             )}
 
             {message.options && message.options.length > 0 && (

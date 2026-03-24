@@ -5,13 +5,16 @@ import { DraftView } from "./DraftView";
 import { TourGuide } from "./TourGuide";
 import { CelebrationModal } from "./CelebrationModal";
 import { RecursosPanel } from "./RecursosPanel";
+import { RightFormPanel } from "./RightFormPanel";
+import { CamposFaltantesForm } from "./CamposFaltantesForm";
+import { ConfirmacaoRound2Form } from "./ChatMessage";
 import { ChatMessage, JobData, JobDataMetadata, ConversationState, RequisitionFullData, Posicao } from "../types/job";
 import { JDAnalysisResult, QuestoesEstruturaisData, CamposFaltantesData } from "../types/jdAnalysis";
 import { simulateJDAnalysis } from "../data/jdSimulation";
-import { JD_PROCESSING_STEPS, FIRST_ROUND_STEPS } from "./ChatMessage";
+import { JD_PROCESSING_STEPS, FIRST_ROUND_STEPS, REQUISITION_ROUND2_STEPS } from "./ChatMessage";
 import { mockJobs, mockRequisitions, mockTemplates, jobFullDataFromId, requisitionFullDataFromId, templateDetailsFromId } from "../data/mockData";
-import { useState, useRef, useEffect } from "react";
-import { useLocation } from "react-router";
+import React, { useState, useRef, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { AnimatePresence } from "motion/react";
 import { CAMPOS_CONFIG } from "./CamposPersonalizadosSideSheet";
 
@@ -23,11 +26,15 @@ const FIXED_AUDIO_TRANSCRIPTION =
 const FIXED_AUDIO_TRANSCRIPTION_ROUND2 =
   "O salário é entre 12 e 16 mil, CLT. A vaga é presencial em São Paulo. São 2 posições, as duas por aumento de quadro.";
 
+const FIXED_AUDIO_TRANSCRIPTION_REQ_ROUND2 =
+  "A contratação vai ser CLT, a localização é São Paulo, SP, e o modelo de trabalho é Híbrido.";
+
 // Local Message type (extends ChatMessage with any extra fields used in the component)
 type Message = ChatMessage;
 
 export function JobCreation() {
   const location = useLocation();
+  const navigate = useNavigate();
   const messageIdCounter = useRef(2);
   const [showTour, setShowTour] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -55,10 +62,18 @@ export function JobCreation() {
   // Celebration modal (shown once per session on first draft creation)
   const [showCelebrationModal, setShowCelebrationModal] = useState(false);
   const celebrationShownRef = useRef(false);
+  const currentRequisitionRef = useRef<RequisitionFullData | null>(null);
 
   // Recursos (right panel) + InfoPanel collapsed
   const [showRecursosPanel, setShowRecursosPanel] = useState(false);
   const [infoPanelCollapsed, setInfoPanelCollapsed] = useState(false);
+  const [recursosExpandedKey, setRecursosExpandedKey] = useState<string | null>(null);
+  const [formPanel, setFormPanel] = useState<{ title: string; node: React.ReactNode } | null>(null);
+
+  const openFormPanel = (title: string, node: React.ReactNode) => {
+    setShowRecursosPanel(false);
+    setFormPanel({ title, node });
+  };
 
   const addMessage = (message: Omit<ChatMessage, 'id'>, delay = 1500) => {
     setIsTyping(true);
@@ -418,6 +433,9 @@ export function JobCreation() {
     } else if (conversationState.flow === 'from_scratch_round2') {
       addUserMessage(message);
       processSecondRound(message);
+    } else if (conversationState.flow === 'use_requisition_round2') {
+      addUserMessage(message);
+      processRequisitionRound2({ ...jobData });
     } else if (conversationState.flow === 'has_description') {
       handleDescriptionSubmit(message);
     } else if (conversationState.flow === 'help_create') {
@@ -432,7 +450,8 @@ export function JobCreation() {
   // ── Audio send handler ─────────────────────────────────────────────────────
   const handleSendAudio = (duration: string) => {
     const isRound2 = conversationState.flow === 'from_scratch_round2';
-    const transcription = isRound2 ? FIXED_AUDIO_TRANSCRIPTION_ROUND2 : FIXED_AUDIO_TRANSCRIPTION;
+    const isReqRound2 = conversationState.flow === 'use_requisition_round2';
+    const transcription = isRound2 ? FIXED_AUDIO_TRANSCRIPTION_ROUND2 : isReqRound2 ? FIXED_AUDIO_TRANSCRIPTION_REQ_ROUND2 : FIXED_AUDIO_TRANSCRIPTION;
 
     setMessages(prev => [...prev, {
       id: Date.now().toString(),
@@ -447,6 +466,8 @@ export function JobCreation() {
       processFirstRound(FIXED_AUDIO_TRANSCRIPTION);
     } else if (conversationState.flow === 'from_scratch_round2') {
       processSecondRound(FIXED_AUDIO_TRANSCRIPTION_ROUND2, true);
+    } else if (conversationState.flow === 'use_requisition_round2') {
+      processRequisitionRound2({ ...jobData });
     }
   };
 
@@ -1103,6 +1124,11 @@ export function JobCreation() {
   };
 
   const handleOptionClick = (value: string) => {
+    if (value === 'go_to_draft') {
+      handleCreateDraftClick();
+      return;
+    }
+
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       type: 'user',
@@ -1318,13 +1344,146 @@ export function JobCreation() {
     }, 500);
   };
 
+  const processRequisitionRound2 = (baseJobData: JobData) => {
+    setConversationState(prev => ({ ...prev, waitingForInput: false }));
+    setInputPlaceholder("Descreva a vaga ou responda às perguntas...");
+
+    const processingMsgId = `processing-${messageIdCounter.current++}`;
+
+    const onComplete = () => {
+      // Extracted mock values from user message
+      const extracted = { tipoContrato: 'CLT', localizacao: 'São Paulo, SP', modeloTrabalho: 'Híbrido' };
+
+      setMessages(prev => prev.map(msg =>
+        msg.id === processingMsgId
+          ? {
+              ...msg,
+              isProcessing: false,
+              onProcessingComplete: undefined,
+              content: '',
+              processingSummary: { steps: REQUISITION_ROUND2_STEPS, isExpanded: false },
+            }
+          : msg
+      ));
+
+      setHasProcessingCompleted(true);
+      setConversationState({ flow: 'completing_data', step: 0, waitingForInput: false });
+
+      // Show confirmation form in right panel
+      setTimeout(() => {
+        const confirmId = (messageIdCounter.current++).toString();
+        const confirmData = {
+          tipoContrato: extracted.tipoContrato,
+          pais: 'Brasil',
+          estado: 'SP',
+          cidade: 'São Paulo',
+          modeloTrabalho: extracted.modeloTrabalho,
+          salarioMinimo: baseJobData.salarioMinimo ?? '',
+          salarioMaximo: baseJobData.salarioMaximo ?? '',
+        };
+
+        setMessages(prev => [...prev, {
+          id: confirmId,
+          type: 'agent',
+          content: 'Entendi! Confirme os dados no painel ao lado antes de salvar.',
+        } as any]);
+
+        const handleConfirm = (confirmed: { tipoContrato: string; localizacao: string; modeloTrabalho: string; salarioMinimo?: string; salarioMaximo?: string }) => {
+          setFormPanel(null);
+          addUserMessage('Dados confirmados');
+
+          const updatedJobData: JobData = {
+            ...baseJobData,
+            tipoContrato: confirmed.tipoContrato,
+            localizacao: confirmed.localizacao,
+            modeloTrabalho: confirmed.modeloTrabalho,
+            salarioMinimo: confirmed.salarioMinimo ?? baseJobData.salarioMinimo,
+            salarioMaximo: confirmed.salarioMaximo ?? baseJobData.salarioMaximo,
+          };
+          setJobData(updatedJobData);
+          setJobDataMetadata(prev => ({
+            ...prev,
+            tipoContrato: { source: 'extracted' },
+            localizacao: { source: 'extracted' },
+            modeloTrabalho: { source: 'extracted' },
+            salarioMinimo: { source: 'extracted' },
+            salarioMaximo: { source: 'extracted' },
+          }));
+
+          setJdAnalysis(prev => prev ? {
+            ...prev,
+            automacoes: prev.automacoes.map(a => {
+              if (a.tipo === 'salario') return { ...a, ativo: true, parametro: `${confirmed.salarioMinimo ?? '?'} – ${confirmed.salarioMaximo ?? '?'} (${confirmed.tipoContrato})` };
+              if (a.tipo === 'modelo_trabalho') return { ...a, ativo: true, parametro: `${confirmed.modeloTrabalho} — ${confirmed.localizacao}` };
+              return a;
+            }),
+          } : prev);
+
+          // Agent message then open campos form with delay
+          addMessage({
+            type: 'agent',
+            content: 'Pra finalizar, confere pra mim os campos personalizados e preencha os que faltaram.',
+          }, 1600);
+
+          setTimeout(() => {
+            openFormPanel(
+              'Campos adicionais',
+              <CamposFaltantesForm
+                onSubmit={(data: CamposFaltantesData) => {
+                  setFormPanel(null);
+                  handleRequisitionCamposFaltantesSubmit(data, updatedJobData);
+                }}
+                onlyCamposPersonalizados
+              />,
+            );
+          }, 2400);
+        };
+
+        openFormPanel(
+          'Confirme os dados',
+          <ConfirmacaoRound2Form
+            initial={confirmData}
+            onSubmit={handleConfirm}
+          />,
+        );
+      }, 600);
+    };
+
+    setMessages(prev => [...prev, {
+      id: processingMsgId,
+      type: 'agent',
+      content: '',
+      isProcessing: true,
+      onProcessingComplete: onComplete,
+      customProcessingSteps: REQUISITION_ROUND2_STEPS,
+      customProcessingDuration: 800,
+    } as any]);
+  };
+
+  const handleRequisitionCamposFaltantesSubmit = (data: import('../types/jdAnalysis').CamposFaltantesData, baseJobData: JobData) => {
+    addUserMessage('Dados confirmados');
+
+    const updatedJobData: JobData = {
+      ...baseJobData,
+      camposPersonalizados: data.camposPersonalizados?.length
+        ? data.camposPersonalizados
+        : baseJobData.camposPersonalizados,
+    };
+    setJobData(updatedJobData);
+
+    setTimeout(() => {
+      const doneId = (messageIdCounter.current++).toString();
+      setMessages(prev => [...prev, {
+        id: doneId,
+        type: 'agent',
+        content: 'Perfeito! Dados salvos. Você possui todas as informações para criar o rascunho da vaga.',
+        hasDraftButton: true,
+      } as any]);
+    }, 400);
+  };
+
   const handleCreateDraftClick = () => {
-    if (!celebrationShownRef.current) {
-      celebrationShownRef.current = true;
-      setShowCelebrationModal(true);
-    } else {
-      handleCreateDraft();
-    }
+    handleCreateDraft();
   };
 
   const handleCelebrationComplete = () => {
@@ -1333,8 +1492,9 @@ export function JobCreation() {
   };
 
   const handleCreateDraft = () => {
+    window.history.replaceState(null, '', '/passo2');
     setShowInfoPanel(false);
-    
+
     setTimeout(() => {
       setIsDraftView(true);
     }, 300);
@@ -1403,6 +1563,7 @@ export function JobCreation() {
 
   // ── From-Requisition flow (triggered from Requisitions page navigation) ──────
   const handleFromRequisition = (requisition: RequisitionFullData) => {
+    currentRequisitionRef.current = requisition;
     const processingMessageId = `processing-${messageIdCounter.current++}`;
 
     const onProcessingComplete = () => {
@@ -1456,6 +1617,8 @@ export function JobCreation() {
         descricao: description,
         senioridade: 'Pleno',
         notasInternas: 'Vaga criada a partir da requisição. Informações extraídas automaticamente.',
+        gestor: 'Ana Silva',
+        avaliadores: ['Carlos Mendes', 'Beatriz Costa'],
         posicoes: requisition.posicoes || [],
         salarioMinimo: requisition.salarioIdeal || '',
         salarioMaximo: requisition.salarioMaximo || '',
@@ -1482,6 +1645,8 @@ export function JobCreation() {
         salarioMinimo: { source: 'extracted' },
         salarioMaximo: { source: 'extracted' },
         requisicao: { source: 'extracted' },
+        gestor: { source: 'inferred' },
+        avaliadores: { source: 'inferred' },
         etapas: { source: 'inferred' },
         divulgacao: { source: 'inferred' },
         confirmacaoInscricao: { source: 'inferred' },
@@ -1505,31 +1670,22 @@ export function JobCreation() {
         setMessages(prev => [...prev, {
           id: distribId,
           type: 'agent',
-          content: 'Com base na requisição, montei os recursos do seu processo seletivo — da triagem à seleção. Revise e ajuste o que quiser:',
+          content: 'Com base na requisição, montei os recursos do seu processo seletivo — da triagem à seleção.',
           distribuicaoPainel: analysis,
           distribuicaoPainelTitulo: extractedData.titulo,
         }]);
       }, 800);
 
-      // Show structural questions — same pattern as JD flow
+      // Show missing info request — free-text/audio approach
       const structId = (messageIdCounter.current++).toString();
       setTimeout(() => {
         setMessages(prev => [...prev, {
           id: structId,
           type: 'agent',
-          content: 'Alguns dados da requisição já foram preenchidos. Confirme ou ajuste as informações abaixo para configurar as automações:',
-          questoesEstruturaisForm: true,
-          questoesEstruturaisInitial: {
-            salMin: extractedData.salarioMinimo || '',
-            salMax: extractedData.salarioMaximo || '',
-          },
-          onQuestoesEstruturaisSubmit: (data: QuestoesEstruturaisData) => {
-            handleQuestoesEstruturaisSubmit(data, extractedData, analysis, {
-              requisicao: { id: requisition.id, label: requisition.name },
-              posicoes: requisition.posicoes,
-            });
-          },
+          content: 'Eu consegui extrair o **título**, **descrição**, **faixa salarial**, **posições e motivos**, além de alguns **campos personalizados**. Mas eu preciso de mais algumas informações:\n\n* Modelo de contratação (CLT/PJ/Contrato temporário/etc.)\n* Localização\n* Modelo de trabalho (Presencial/Híbrido/Remoto)\n\nPreciso que você escreva ou mande um áudio respondendo estas informações.',
         }]);
+        setConversationState({ flow: 'use_requisition_round2', step: 0, waitingForInput: true });
+        setInputPlaceholder("Pode escrever ou gravar um áudio...");
       }, 4000);
     };
 
@@ -1556,6 +1712,9 @@ export function JobCreation() {
     if (!fromRequisition) {
       setShowTour(true);
     }
+
+    // Update URL to reflect current step
+    window.history.replaceState(null, '', '/passo1');
 
     if (fromRequisition) {
       // ── Show typing animation first, then greeting, then processing ────────
@@ -1622,7 +1781,7 @@ export function JobCreation() {
                 onDraftButtonHover={setRobotLookingAtDraft}
                 collapsed={infoPanelCollapsed}
                 onToggleCollapsed={() => setInfoPanelCollapsed(v => !v)}
-                onOpenRecursos={() => { setShowRecursosPanel(true); }}
+                onOpenRecursos={(key) => { setShowRecursosPanel(true); if (key) setRecursosExpandedKey(key); }}
               />
             </div>
           )}
@@ -1640,17 +1799,27 @@ export function JobCreation() {
           onToggleProcessing={handleToggleProcessing}
           onStepChange={handleStepChange}
           robotState={robotLookingAtDraft ? 'looking-right' : 'idle'}
-          onOpenRecursos={() => setShowRecursosPanel(true)}
+          onOpenRecursos={(key) => { setShowRecursosPanel(true); if (key) setRecursosExpandedKey(key); }}
         />
 
-        {/* ── RecursosPanel — RIGHT side ── */}
+        {/* ── Right panel — recursos OR form ── */}
         <AnimatePresence>
-          {showRecursosPanel && jdAnalysis && !isDraftView && (
+          {formPanel && !isDraftView && (
+            <RightFormPanel
+              key="form-panel"
+              title={formPanel.title}
+              onClose={() => setFormPanel(null)}
+            >
+              {formPanel.node}
+            </RightFormPanel>
+          )}
+          {showRecursosPanel && jdAnalysis && !isDraftView && !formPanel && (
             <RecursosPanel
               key="recursos-panel"
               analysis={jdAnalysis}
               titulo={jobData.titulo}
               onClose={() => setShowRecursosPanel(false)}
+              expandedKey={recursosExpandedKey}
             />
           )}
         </AnimatePresence>

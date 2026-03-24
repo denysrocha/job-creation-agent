@@ -1,27 +1,35 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { FileText, MessageSquare, BookOpen, Bot, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { FileText, MessageSquare, BookOpen, Bot, Zap, GitBranch, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { JDAnalysisResult } from '../types/jdAnalysis';
 import {
   CurriculoDetalhe,
   FormularioDetalhe,
   KitDetalhe,
   AgenteTriagemDetalhe,
+  AutomacoesDetalhe,
+  EtapasDetalhe,
 } from './DistribuicaoPainel';
+import { ETAPAS_PADRAO } from '../types/job';
 
 interface RecursosPanelProps {
   analysis: JDAnalysisResult;
   titulo?: string;
   onClose: () => void;
+  expandedKey?: string | null;
 }
 
-type ResourceKey = 'curriculo' | 'formulario' | 'kit' | 'agente';
+type ResourceKey = 'curriculo' | 'formulario' | 'kit' | 'agente' | 'automacoes' | 'etapas';
 
-export function RecursosPanel({ analysis, titulo, onClose }: RecursosPanelProps) {
+export function RecursosPanel({ analysis, titulo, onClose, expandedKey }: RecursosPanelProps) {
   const [expanded, setExpanded] = useState<ResourceKey | null>(null);
   const { distribuicao_resumo } = analysis;
 
   const toggle = (key: ResourceKey) => setExpanded(prev => prev === key ? null : key);
+
+  useEffect(() => {
+    if (expandedKey) setExpanded(expandedKey as ResourceKey);
+  }, [expandedKey]);
 
   const agenteCount =
     (distribuicao_resumo.criterios_curriculo > 0 ? 1 : 0) +
@@ -94,6 +102,28 @@ export function RecursosPanel({ analysis, titulo, onClose }: RecursosPanelProps)
         />
       ),
     },
+    {
+      key: 'automacoes',
+      icon: <Zap className="w-4 h-4" />,
+      count: analysis.automacoes.filter(a => a.tipo === 'salario' || a.tipo === 'modelo_trabalho').length,
+      label: 'Automações de reprovação',
+      desc: 'Reprovação automática por salário e modelo de trabalho.',
+      color: 'text-rose-600',
+      bg: 'bg-rose-50',
+      borderActive: 'border-rose-200 bg-rose-50/60',
+      detail: <AutomacoesDetalhe automacoes={analysis.automacoes} />,
+    },
+    {
+      key: 'etapas',
+      icon: <GitBranch className="w-4 h-4" />,
+      count: ETAPAS_PADRAO.length,
+      label: 'Etapas do processo',
+      desc: 'Sequência sugerida para o processo seletivo.',
+      color: 'text-green-600',
+      bg: 'bg-green-50',
+      borderActive: 'border-green-200 bg-green-50/60',
+      detail: <EtapasDetalhe />,
+    },
   ];
 
   return (
@@ -106,7 +136,7 @@ export function RecursosPanel({ analysis, titulo, onClose }: RecursosPanelProps)
       style={{ minWidth: 0 }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+      <div className="flex items-center justify-between px-5 py-4 flex-shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-purple-500 text-base leading-none">✦</span>
           <h2 className="text-sm text-gray-800" style={{ fontWeight: 600 }}>

@@ -17,7 +17,7 @@ interface ChatAreaProps {
   onToggleProcessing?: (messageId: string) => void;
   onStepChange?: (step: string) => void;
   robotState?: RobotState;
-  onOpenRecursos?: () => void;
+  onOpenRecursos?: (key?: string) => void;
 }
 
 // Static waveform bars for preview UI
@@ -208,12 +208,12 @@ export function ChatArea({
 
           {/* Idle robot — shown only when no typing and no active processing */}
           {!isTyping && !hasActiveProcessing && (
-            <div className="mt-2 mb-4">
+            <motion.div layout className="mt-2 pb-[28vh]">
               <RobotPresence
                 state={robotState || 'idle'}
                 size={40}
               />
-            </div>
+            </motion.div>
           )}
         </div>
       </div>

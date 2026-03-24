@@ -446,12 +446,29 @@ export interface ChatMessage {
 
   // Campos faltantes — form unificado
   camposFaltantesForm?: boolean;
+  camposFaltantesAutoExpand?: boolean;
+  camposFaltantesOnlyCampos?: boolean;
   onCamposFaltantesSubmit?: (data: CamposFaltantesData) => void;
   camposFaltantesInitial?: {
     requisicao?: { id: string; label: string };
     posicoes?: Posicao[];
     hidePosicoes?: boolean;
   };
+
+  // Draft button inline
+  hasDraftButton?: boolean;
+
+  // Confirmação de extração round 2 (salário/localização)
+  confirmacaoRound2?: {
+    tipoContrato: string;
+    pais: string;
+    estado: string;
+    cidade: string;
+    modeloTrabalho: string;
+    salarioMinimo?: string;
+    salarioMaximo?: string;
+  };
+  onConfirmacaoRound2Submit?: (data: { tipoContrato: string; localizacao: string; modeloTrabalho: string; salarioMinimo?: string; salarioMaximo?: string }) => void;
   
   // Campos antigos (compatibilidade)
   posicoesField?: boolean;
