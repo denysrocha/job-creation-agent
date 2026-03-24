@@ -9,6 +9,8 @@ export const router = createBrowserRouter([
     Component: Layout,
     children: [
       { index: true, Component: JobCreation },
+      { path: 'passo1', Component: JobCreation },
+      { path: 'passo2', Component: JobCreation },
       { path: 'requisitions', Component: Requisitions },
     ],
   },

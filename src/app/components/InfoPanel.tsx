@@ -224,7 +224,7 @@ export function InfoPanel({
           <div className="mb-5">
             {/* Quality row */}
             <div className="flex items-baseline justify-between mb-1">
-              <span className="text-xs text-gray-500">Qualidade da vaga</span>
+              <span className="text-sm text-gray-700" style={{ fontWeight: 600 }}>Qualidade da vaga</span>
               <span
                 className="text-sm"
                 style={{ fontWeight: 800, color: qColor }}
@@ -282,7 +282,7 @@ export function InfoPanel({
         </div>
 
         {/* Fields list */}
-        <div className="space-y-3">
+        <div className="space-y-4">
           {fields.map((field) => {
             const displayValue = field.getValue(jobData);
             const isFilled = displayValue !== "";
@@ -334,23 +334,20 @@ export function InfoPanel({
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <p className={`text-xs leading-snug ${
+                  <p className={`text-sm leading-snug ${
                     showCheck
                       ? 'text-gray-800'
                       : isProcessingField
                       ? 'text-purple-600'
                       : 'text-gray-400'
-                  }`}>
-                    <span style={showCheck ? { fontWeight: 500 } : {}}>
-                      {field.label}
-                    </span>
-                    {showCheck && displayValue && (
-                      <span className="text-gray-500" style={{ fontWeight: 400 }}>
-                        {': '}
-                        <span className="text-gray-700">{displayValue}</span>
-                      </span>
-                    )}
+                  }`} style={showCheck ? { fontWeight: 500 } : {}}>
+                    {field.label}
                   </p>
+                  {showCheck && displayValue && (
+                    <p className="text-sm text-gray-600 mt-0.5 leading-snug" style={{ fontWeight: 400 }}>
+                      {displayValue}
+                    </p>
+                  )}
                 </div>
               </div>
             );
@@ -359,22 +356,7 @@ export function InfoPanel({
       </div>
 
       {/* Footer */}
-      <div className="px-5 pt-3 pb-4 border-t border-gray-100 flex items-center gap-2">
-        <Button
-          className={`flex-1 text-white text-[13px] ${
-            hasProcessingCompleted
-              ? "bg-purple-600 hover:bg-purple-700"
-              : "bg-gray-300 cursor-not-allowed"
-          }`}
-          size="lg"
-          onClick={onCreateDraft}
-          disabled={false}
-          onMouseEnter={() => onDraftButtonHover?.(true)}
-          onMouseLeave={() => onDraftButtonHover?.(false)}
-        >
-          Criar rascunho
-        </Button>
-
+      <div className="px-5 pt-3 pb-4 border-t border-gray-100 flex items-center justify-end">
         {/* Collapse button — chevron points LEFT (collapse away from center) */}
         <button
           onClick={onToggleCollapsed}

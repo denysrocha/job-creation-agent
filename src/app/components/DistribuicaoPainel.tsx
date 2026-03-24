@@ -21,6 +21,7 @@ import {
   PerguntaFormulario,
   HabilidadeScorecard,
   KitEntrevistaEtapa,
+  Automacao,
 } from '../types/jdAnalysis';
 import { PLATAFORMAS_PADRAO, ETAPAS_PADRAO, FASES_PADRAO } from '../types/job';
 
@@ -281,7 +282,7 @@ export function AgenteTriagemDetalhe({
 
 // ── Etapas do processo ────────────────────────────────────────────────────────
 
-function EtapasDetalhe() {
+export function EtapasDetalhe() {
   // Group ETAPAS_PADRAO by fase, preserving FASES_PADRAO order
   const etapasPorFase = FASES_PADRAO.map(fase => ({
     fase,
@@ -696,6 +697,40 @@ export function DistribuicaoPainel({ analysis, titulo }: DistribuicaoPainelProps
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Automações de reprovação ──────────────────────────────────────────────────
+
+const automacaoMeta: Record<string, { label: string; desc: string }> = {
+  salario: {
+    label: 'Reprovação por faixa salarial',
+    desc: 'Candidatos com pretensão fora da faixa definida são reprovados automaticamente na inscrição, sem avançar no processo.',
+  },
+  modelo_trabalho: {
+    label: 'Reprovação por modelo de trabalho',
+    desc: 'Candidatos sem disponibilidade para o modelo definido (híbrido/presencial) são reprovados automaticamente na inscrição.',
+  },
+};
+
+export function AutomacoesDetalhe({ automacoes }: { automacoes: Automacao[] }) {
+  const relevant = automacoes.filter(a => a.tipo === 'salario' || a.tipo === 'modelo_trabalho');
+
+  return (
+    <div className="space-y-3">
+      {relevant.map((a, i) => {
+        const meta = automacaoMeta[a.tipo];
+        return (
+          <div key={i} className="bg-white border border-gray-100 rounded-lg p-3">
+            <p className="text-sm text-gray-800 mb-1" style={{ fontWeight: 500 }}>{meta.label}</p>
+            <p className="text-xs text-gray-500 leading-snug">{meta.desc}</p>
+            {a.parametro && !a.parametro.includes('ainda não') && (
+              <p className="text-xs text-gray-400 mt-1.5 italic">{a.parametro}</p>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

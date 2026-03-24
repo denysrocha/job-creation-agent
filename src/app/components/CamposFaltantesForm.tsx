@@ -11,6 +11,7 @@ interface CamposFaltantesFormProps {
   initialRequisicao?: { id: string; label: string };
   initialPosicoes?: { quantidade: number; motivo: string }[];
   hidePosicoes?: boolean;
+  onlyCamposPersonalizados?: boolean;
 }
 
 // ── Select options ─────────────────────────────────────────────────────────────
@@ -274,7 +275,7 @@ function CamposPersonalizadosInput({
 
 // ── Main ───────────────────────────────────────────────────────────────────────
 
-export function CamposFaltantesForm({ onSubmit, initialRequisicao, initialPosicoes, hidePosicoes }: CamposFaltantesFormProps) {
+export function CamposFaltantesForm({ onSubmit, initialRequisicao, initialPosicoes, hidePosicoes, onlyCamposPersonalizados }: CamposFaltantesFormProps) {
   const [gestor, setGestor] = useState('');
   const [avaliadores, setAvaliadores] = useState<string[]>([]);
   const [requisicoes, setRequisicoes] = useState<string[]>(() =>
@@ -307,36 +308,38 @@ export function CamposFaltantesForm({ onSubmit, initialRequisicao, initialPosico
     <div className="mt-3 space-y-3 max-w-xl">
 
       {/* ── Grupo 1: Avaliadores + Gestor ──────────────────────────────────── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
-
-        <div>
-          <FieldLabel optional>Avaliadores responsáveis</FieldLabel>
-          <AvaliadoresInput avaliadores={avaliadores} onChange={setAvaliadores} />
+      {!onlyCamposPersonalizados && (
+        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
+          <div>
+            <FieldLabel optional>Avaliadores responsáveis</FieldLabel>
+            <AvaliadoresInput avaliadores={avaliadores} onChange={setAvaliadores} />
+          </div>
+          <div className="border-t border-gray-100 pt-4">
+            <FieldLabel optional>Gestor responsável</FieldLabel>
+            <input
+              type="text"
+              value={gestor}
+              onChange={e => setGestor(e.target.value)}
+              placeholder="Nome do gestor da área"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
         </div>
-
-        <div className="border-t border-gray-100 pt-4">
-          <FieldLabel optional>Gestor responsável</FieldLabel>
-          <input
-            type="text"
-            value={gestor}
-            onChange={e => setGestor(e.target.value)}
-            placeholder="Nome do gestor da área"
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-          />
-        </div>
-      </div>
+      )}
 
       {/* ── Grupo 2: Requisição ─────────────────────────────────────────────── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
-        <div>
-          <FieldLabel optional>Requisição</FieldLabel>
-          <RequisicoesInput
-            requisicoes={requisicoes}
-            onChange={setRequisicoes}
-            extraOption={initialRequisicao}
-          />
+      {!onlyCamposPersonalizados && (
+        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
+          <div>
+            <FieldLabel optional>Requisição</FieldLabel>
+            <RequisicoesInput
+              requisicoes={requisicoes}
+              onChange={setRequisicoes}
+              extraOption={initialRequisicao}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── Campos personalizados ───────────────────────────────────────────── */}
       <div className="bg-white border border-gray-200 rounded-xl p-4">
@@ -353,11 +356,8 @@ export function CamposFaltantesForm({ onSubmit, initialRequisicao, initialPosico
         onClick={handleSubmit}
         className="w-full py-2.5 rounded-xl text-sm bg-purple-600 hover:bg-purple-700 text-white transition-colors"
       >
-        Salvar dados da vaga
+        Confirmar
       </button>
-      <p className="text-xs text-center text-gray-400 pb-1">
-        Todos os campos são opcionais — pode preencher depois no rascunho.
-      </p>
     </div>
   );
 }
