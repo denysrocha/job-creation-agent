@@ -137,11 +137,14 @@ export function RecursosPanel({ analysis, titulo, onClose, expandedKey }: Recurs
     >
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="text-purple-500 text-base leading-none">✦</span>
-          <h2 className="text-sm text-gray-800" style={{ fontWeight: 600 }}>
-            Recursos configurados
-          </h2>
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-2">
+            <span className="text-purple-500 text-lg leading-none">✦</span>
+            <h2 className="text-base text-gray-800" style={{ fontWeight: 600 }}>
+              Recursos configurados
+            </h2>
+          </div>
+          <p className="text-sm text-gray-400 pl-6">Pré-visualização — editável na próxima etapa</p>
         </div>
         <button
           onClick={onClose}

@@ -134,8 +134,7 @@ export function ConfirmacaoRound2Form({
   const inputCls = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-50 disabled:text-gray-500";
 
   return (
-    <div className="mt-3 max-w-sm">
-      <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+    <div className="space-y-3">
         <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Confirme os dados</p>
 
         {/* Salário */}
@@ -201,7 +200,6 @@ export function ConfirmacaoRound2Form({
         ) : (
           <p className="text-xs text-green-600 font-medium text-center">✓ Dados confirmados</p>
         )}
-      </div>
     </div>
   );
 }
@@ -401,6 +399,18 @@ export function ChatMessage({ message, onOptionClick, onToggleProcessing, onStep
               </div>
             )}
 
+            {/* Generic inline action button */}
+            {message.inlineActionButton && (
+              <div className="mt-4">
+                <button
+                  onClick={message.inlineActionButton.onClick}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-colors text-sm font-medium"
+                >
+                  {message.inlineActionButton.label}
+                </button>
+              </div>
+            )}
+
             {message.options && message.options.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-4">
                 {message.options.map((option, index) => (
@@ -408,7 +418,7 @@ export function ChatMessage({ message, onOptionClick, onToggleProcessing, onStep
                     <button
                       key={index}
                       onClick={() => onOptionClick?.(option.value)}
-                      className="text-sm text-gray-400 hover:text-gray-600 transition-colors px-1 py-1 underline underline-offset-2"
+                      className="text-sm text-gray-500 hover:text-gray-900 transition-colors px-1 py-1"
                     >
                       {option.label}
                     </button>

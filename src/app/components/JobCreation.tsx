@@ -9,7 +9,7 @@ import { RightFormPanel } from "./RightFormPanel";
 import { CamposFaltantesForm } from "./CamposFaltantesForm";
 import { ConfirmacaoRound2Form } from "./ChatMessage";
 import { ChatMessage, JobData, JobDataMetadata, ConversationState, RequisitionFullData, Posicao } from "../types/job";
-import { JDAnalysisResult, QuestoesEstruturaisData, CamposFaltantesData } from "../types/jdAnalysis";
+import { JDAnalysisResult, CamposFaltantesData } from "../types/jdAnalysis";
 import { simulateJDAnalysis } from "../data/jdSimulation";
 import { JD_PROCESSING_STEPS, FIRST_ROUND_STEPS, REQUISITION_ROUND2_STEPS } from "./ChatMessage";
 import { mockJobs, mockRequisitions, mockTemplates, jobFullDataFromId, requisitionFullDataFromId, templateDetailsFromId } from "../data/mockData";
@@ -59,6 +59,9 @@ export function JobCreation() {
   // Robot state for hover on "Criar rascunho" button
   const [robotLookingAtDraft, setRobotLookingAtDraft] = useState(false);
 
+  // Footer state — screen 1
+  const [canCreateDraft, setCanCreateDraft] = useState(false);
+
   // Celebration modal (shown once per session on first draft creation)
   const [showCelebrationModal, setShowCelebrationModal] = useState(false);
   const celebrationShownRef = useRef(false);
@@ -67,6 +70,8 @@ export function JobCreation() {
   // Recursos (right panel) + InfoPanel collapsed
   const [showRecursosPanel, setShowRecursosPanel] = useState(false);
   const [infoPanelCollapsed, setInfoPanelCollapsed] = useState(false);
+  const [chatCollapsed, setChatCollapsed] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [recursosExpandedKey, setRecursosExpandedKey] = useState<string | null>(null);
   const [formPanel, setFormPanel] = useState<{ title: string; node: React.ReactNode } | null>(null);
 
@@ -244,6 +249,7 @@ export function JobCreation() {
       }, 1500);
       setConversationState({ flow: 'initial', step: 0, waitingForInput: false });
       setHasProcessingCompleted(true);
+      setCanCreateDraft(true);
       return;
     }
 
@@ -427,6 +433,7 @@ export function JobCreation() {
   };
 
   const handleSendMessage = (message: string) => {
+    setShowRecursosPanel(false);
     if (conversationState.flow === 'from_scratch_round1') {
       addUserMessage(message);
       processFirstRound(message);
@@ -449,6 +456,7 @@ export function JobCreation() {
 
   // ── Audio send handler ─────────────────────────────────────────────────────
   const handleSendAudio = (duration: string) => {
+    setShowRecursosPanel(false);
     const isRound2 = conversationState.flow === 'from_scratch_round2';
     const isReqRound2 = conversationState.flow === 'use_requisition_round2';
     const transcription = isRound2 ? FIXED_AUDIO_TRANSCRIPTION_ROUND2 : isReqRound2 ? FIXED_AUDIO_TRANSCRIPTION_REQ_ROUND2 : FIXED_AUDIO_TRANSCRIPTION;
@@ -572,10 +580,21 @@ export function JobCreation() {
     const localJaInformado = { salario: false, modeloTrabalho: false, localizacao: false };
 
     if (informative) {
+      const lower = text.toLowerCase();
+      const detectedTipoContrato =
+        lower.includes('menor aprendiz') ? 'Menor aprendiz' :
+        lower.includes('cooperado') ? 'Cooperado' :
+        lower.includes('autônomo') || lower.includes('autonomo') ? 'Autônomo' :
+        lower.includes('associado') ? 'Associado' :
+        lower.includes('contrato temporário') || lower.includes('contrato temporario') || lower.includes('temporário') || lower.includes('temporario') ? 'Contrato temporário' :
+        lower.includes('estágio') || lower.includes('estagio') ? 'Estágio' :
+        lower.includes(' pj') || lower.includes('pessoa jurídica') || lower.includes('pessoa juridica') ? 'PJ' :
+        'CLT';
+
       const secondRound: Partial<JobData> = {
         salarioMinimo: 'R$ 12.000',
         salarioMaximo: 'R$ 16.000',
-        tipoContrato: 'CLT',
+        tipoContrato: detectedTipoContrato,
         localizacao: 'São Paulo, SP',
         modeloTrabalho: 'Presencial',
         posicoes: [{ quantidade: 2, motivo: 'Aumento de quadro' }],
@@ -623,38 +642,101 @@ export function JobCreation() {
         setMessages(prev => [...prev, {
           id: distribId,
           type: 'agent',
-          content: 'Com base na descrição da vaga, montei os recursos do seu processo seletivo — da triagem à seleção. Revise e ajuste o que quiser:',
+          content: 'Com base na descrição da vaga, montei os recursos do seu processo seletivo — da triagem à seleção.',
           distribuicaoPainel: analysis,
           distribuicaoPainelTitulo: updatedJobData.titulo,
         }]);
       }, 800);
 
-      const structId = (messageIdCounter.current++).toString();
+      // Show inline action button to open confirmation panel
       setTimeout(() => {
+        const locParts = (updatedJobData.localizacao || 'São Paulo, SP').split(', ');
+        const confirmData = {
+          tipoContrato: updatedJobData.tipoContrato || 'CLT',
+          pais: 'Brasil',
+          estado: locParts[1] || 'SP',
+          cidade: locParts[0] || 'São Paulo',
+          modeloTrabalho: updatedJobData.modeloTrabalho || '',
+          salarioMinimo: updatedJobData.salarioMinimo || '',
+          salarioMaximo: updatedJobData.salarioMaximo || '',
+        };
+
+        const handleConfirm = (confirmed: {
+          tipoContrato: string; localizacao: string; modeloTrabalho: string;
+          salarioMinimo?: string; salarioMaximo?: string;
+        }) => {
+          setFormPanel(null);
+          addUserMessage('Dados confirmados');
+
+          const confirmedJobData: JobData = {
+            ...updatedJobData,
+            tipoContrato: confirmed.tipoContrato,
+            localizacao: confirmed.localizacao,
+            modeloTrabalho: confirmed.modeloTrabalho,
+            salarioMinimo: confirmed.salarioMinimo ?? updatedJobData.salarioMinimo,
+            salarioMaximo: confirmed.salarioMaximo ?? updatedJobData.salarioMaximo,
+          };
+          setJobData(confirmedJobData);
+          setJobDataMetadata(prev => ({
+            ...prev,
+            tipoContrato: { source: 'extracted' },
+            localizacao: { source: 'extracted' },
+            modeloTrabalho: { source: 'extracted' },
+            salarioMinimo: { source: 'extracted' },
+            salarioMaximo: { source: 'extracted' },
+          }));
+
+          setJdAnalysis(prev => prev ? {
+            ...prev,
+            automacoes: prev.automacoes.map(a => {
+              if (a.tipo === 'salario') return { ...a, ativo: true, parametro: `${confirmed.salarioMinimo ?? '?'} – ${confirmed.salarioMaximo ?? '?'} (${confirmed.tipoContrato})` };
+              if (a.tipo === 'modelo_trabalho') return { ...a, ativo: true, parametro: `${confirmed.modeloTrabalho} — ${confirmed.localizacao}` };
+              return a;
+            }),
+          } : prev);
+
+          setHasProcessingCompleted(true);
+          setConversationState({ flow: 'completing_data', step: 0, waitingForInput: false });
+
+          addMessage({
+            type: 'agent',
+            content: 'Pra finalizar, confere pra mim os campos personalizados e preencha os que faltaram.',
+          }, 1600);
+
+          setTimeout(() => {
+            openFormPanel(
+              'Campos adicionais',
+              <CamposFaltantesForm
+                onSubmit={(data: CamposFaltantesData) => {
+                  setFormPanel(null);
+                  handleRequisitionCamposFaltantesSubmit(data, confirmedJobData);
+                }}
+                onlyCamposPersonalizados
+              />,
+            );
+          }, 2400);
+        };
+
+        const actionMsgId = (messageIdCounter.current++).toString();
         setMessages(prev => [...prev, {
-          id: structId,
+          id: actionMsgId,
           type: 'agent',
-          content: informative
-            ? 'Já capturei os dados que você informou. Confirme as automações abaixo ou ajuste o que precisar:'
-            : 'Agora preciso de alguns dados para completar a vaga e configurar as automações.',
-          questoesEstruturaisForm: true,
-          questoesEstruturaisInitial: {
-            salMin: updatedJobData.salarioMinimo || '',
-            salMax: updatedJobData.salarioMaximo || '',
-            tipoContrato: updatedJobData.tipoContrato || '',
-            modeloTrabalho: updatedJobData.modeloTrabalho || '',
-            localizacao: updatedJobData.localizacao || '',
-            jaInformado: {
-              salario: localJaInformado.salario,
-              modeloTrabalho: localJaInformado.modeloTrabalho,
-              localizacao: localJaInformado.localizacao,
+          content: 'Preciso confirmar alguns dados antes de salvar.',
+          inlineActionButton: {
+            label: 'Confirmar dados →',
+            onClick: () => {
+              setShowRecursosPanel(false);
+              openFormPanel(
+                'Confirme os dados',
+                <ConfirmacaoRound2Form
+                  initial={confirmData}
+                  onSubmit={handleConfirm}
+                />,
+              );
             },
           },
-          onQuestoesEstruturaisSubmit: (data: QuestoesEstruturaisData) => {
-            handleQuestoesEstruturaisSubmit(data, updatedJobData, analysis);
-          },
-        }]);
-      }, 4000);
+        } as any]);
+      }, 1600);
     };
 
     setMessages(prev => [...prev, {
@@ -736,25 +818,100 @@ export function JobCreation() {
         setMessages(prev => [...prev, {
           id: distribId,
           type: 'agent',
-          content: 'Com base na descrição da vaga, montei os recursos do seu processo seletivo — da triagem à seleção. Revise e ajuste o que quiser:',
+          content: 'Com base na descrição da vaga, montei os recursos do seu processo seletivo — da triagem à seleção.',
           distribuicaoPainel: analysis,
           distribuicaoPainelTitulo: extractedData.titulo,
         }]);
       }, 800);
 
-      // Show structural questions — separate message, with breathing room
-      const structId = (messageIdCounter.current++).toString();
+      // Show inline action button to open confirmation panel
       setTimeout(() => {
+        const confirmData = {
+          tipoContrato: extractedData.tipoContrato || 'CLT',
+          pais: 'Brasil',
+          estado: 'SP',
+          cidade: 'São Paulo',
+          modeloTrabalho: extractedData.modeloTrabalho || '',
+          salarioMinimo: extractedData.salarioMinimo || '',
+          salarioMaximo: extractedData.salarioMaximo || '',
+        };
+
+        const handleConfirmDesc = (confirmed: {
+          tipoContrato: string; localizacao: string; modeloTrabalho: string;
+          salarioMinimo?: string; salarioMaximo?: string;
+        }) => {
+          setFormPanel(null);
+          addUserMessage('Dados confirmados');
+
+          const confirmedJobData: JobData = {
+            ...extractedData,
+            tipoContrato: confirmed.tipoContrato,
+            localizacao: confirmed.localizacao,
+            modeloTrabalho: confirmed.modeloTrabalho,
+            salarioMinimo: confirmed.salarioMinimo ?? extractedData.salarioMinimo,
+            salarioMaximo: confirmed.salarioMaximo ?? extractedData.salarioMaximo,
+          };
+          setJobData(confirmedJobData);
+          setJobDataMetadata(prev => ({
+            ...prev,
+            tipoContrato: { source: 'extracted' },
+            localizacao: { source: 'extracted' },
+            modeloTrabalho: { source: 'extracted' },
+            salarioMinimo: { source: 'extracted' },
+            salarioMaximo: { source: 'extracted' },
+          }));
+
+          setJdAnalysis(prev => prev ? {
+            ...prev,
+            automacoes: prev.automacoes.map(a => {
+              if (a.tipo === 'salario') return { ...a, ativo: true, parametro: `${confirmed.salarioMinimo ?? '?'} – ${confirmed.salarioMaximo ?? '?'} (${confirmed.tipoContrato})` };
+              if (a.tipo === 'modelo_trabalho') return { ...a, ativo: true, parametro: `${confirmed.modeloTrabalho} — ${confirmed.localizacao}` };
+              return a;
+            }),
+          } : prev);
+
+          setHasProcessingCompleted(true);
+          setConversationState({ flow: 'completing_data', step: 0, waitingForInput: false });
+
+          addMessage({
+            type: 'agent',
+            content: 'Pra finalizar, confere pra mim os campos personalizados e preencha os que faltaram.',
+          }, 1600);
+
+          setTimeout(() => {
+            openFormPanel(
+              'Campos adicionais',
+              <CamposFaltantesForm
+                onSubmit={(data: CamposFaltantesData) => {
+                  setFormPanel(null);
+                  handleRequisitionCamposFaltantesSubmit(data, confirmedJobData);
+                }}
+                onlyCamposPersonalizados
+              />,
+            );
+          }, 2400);
+        };
+
+        const actionMsgId = (messageIdCounter.current++).toString();
         setMessages(prev => [...prev, {
-          id: structId,
+          id: actionMsgId,
           type: 'agent',
-          content: 'Agora preciso de alguns dados para completar a vaga e configurar as automações.',
-          questoesEstruturaisForm: true,
-          onQuestoesEstruturaisSubmit: (data: QuestoesEstruturaisData) => {
-            handleQuestoesEstruturaisSubmit(data, extractedData, analysis);
+          content: 'Preciso confirmar alguns dados antes de salvar.',
+          inlineActionButton: {
+            label: 'Confirmar dados →',
+            onClick: () => {
+              setShowRecursosPanel(false);
+              openFormPanel(
+                'Confirme os dados',
+                <ConfirmacaoRound2Form
+                  initial={confirmData}
+                  onSubmit={handleConfirmDesc}
+                />,
+              );
+            },
           },
-        }]);
-      }, 4000);
+        } as any]);
+      }, 1600);
     };
 
     setMessages(prev => [...prev, {
@@ -767,62 +924,6 @@ export function JobCreation() {
     } as any]);
   };
 
-  const handleQuestoesEstruturaisSubmit = (
-    data: QuestoesEstruturaisData,
-    baseJobData?: JobData,
-    analysis?: JDAnalysisResult | null,
-    camposFaltantesInitialData?: { requisicao?: { id: string; label: string }; posicoes?: Posicao[] },
-  ) => {
-    // Compose localização from pais/estado/cidade
-    const localizacao = [data.cidade, data.estado, data.pais].filter(Boolean).join(', ');
-
-    // Build user summary message
-    const parts: string[] = [];
-    if (data.salarioMinimo && data.salarioMaximo && data.tipoContrato) {
-      parts.push(`Faixa salarial: ${data.salarioMinimo} – ${data.salarioMaximo} (${data.tipoContrato})`);
-    }
-    if (data.modeloTrabalho) parts.push(`Modelo: ${data.modeloTrabalho}`);
-    if (localizacao) parts.push(`Localização: ${localizacao}`);
-    if (data.reprovarPorSalario) parts.push('Automação de salário: ativa');
-    if (data.reprovarPorModeloTrabalho) parts.push('Automação de modelo de trabalho: ativa');
-    addUserMessage(parts.join(' · '));
-
-    // Update job data
-    const updatedJobData: JobData = {
-      ...(baseJobData || jobData),
-      ...(data.salarioMinimo ? { salarioMinimo: data.salarioMinimo } : {}),
-      ...(data.salarioMaximo ? { salarioMaximo: data.salarioMaximo } : {}),
-      ...(data.tipoContrato ? { tipoContrato: data.tipoContrato } : {}),
-      ...(data.modeloTrabalho ? { modeloTrabalho: data.modeloTrabalho } : {}),
-      ...(localizacao ? { localizacao } : {}),
-    };
-    setJobData(updatedJobData);
-
-    // Update automations in analysis if requested
-    if (analysis) {
-      const updatedAnalysis: JDAnalysisResult = {
-        ...analysis,
-        automacoes: analysis.automacoes.map(a => ({
-          ...a,
-          ativo: a.tipo === 'salario' ? data.reprovarPorSalario : a.tipo === 'modelo_trabalho' ? data.reprovarPorModeloTrabalho : a.ativo,
-          parametro: a.tipo === 'salario' && data.reprovarPorSalario && data.salarioMinimo
-            ? `${data.salarioMinimo} – ${data.salarioMaximo}`
-            : a.tipo === 'modelo_trabalho' && data.reprovarPorModeloTrabalho && data.modeloTrabalho
-            ? data.modeloTrabalho
-            : a.parametro,
-        })),
-      };
-      setJdAnalysis(updatedAnalysis);
-    }
-
-    setConversationState({ flow: 'completing_data', step: 0, waitingForInput: false });
-    setHasProcessingCompleted(true);
-
-    // Show remaining missing fields
-    setTimeout(() => {
-      showMissingFieldsOptions(updatedJobData, false, camposFaltantesInitialData);
-    }, 600);
-  };
 
   const handleCamposFaltantesSubmit = (data: CamposFaltantesData, baseJobData?: JobData) => {
     // Build user summary
@@ -855,6 +956,7 @@ export function JobCreation() {
     }, 800);
 
     setHasProcessingCompleted(true);
+    setCanCreateDraft(true);
   };
 
   const handleJobSelect = (jobId: string) => {
@@ -901,12 +1003,12 @@ export function JobCreation() {
         bu: 'Tecnologia',
         camposPersonalizados: CAMPOS_CONFIG.map(cfg => ({
           ...cfg,
-          valor: cfg.id === 'teste-duda'    ? 'Duplicado'
-               : cfg.id === 'tipo-vaga'     ? 'Efetivo'
-               : cfg.id === 'proc-seletivo' ? 'Seletivo Interno'
-               : cfg.id === 'area'          ? 'Tecnologia'
-               : cfg.id === 'area2'         ? 'Tecnologia'
+          valor: cfg.id === 'projeto'       ? 'Plataforma Core'
                : cfg.id === 'centro-custo'  ? 'CC-001'
+               : cfg.id === 'time'          ? 'Engenharia'
+               : cfg.id === 'tempo-projeto' ? '6 meses'
+               : cfg.id === 'area'          ? 'Tecnologia'
+               : cfg.id === 'squad'         ? 'Squad Produto'
                : '',
         })),
         etapas: 'Triagem → Teste técnico → Entrevista com gestor → Proposta',
@@ -958,6 +1060,7 @@ export function JobCreation() {
           type: 'agent',
           content: `Prontinho! Copiei todos os dados de **${jobFull.titulo}** e já preenchi o rascunho com todas as informações. Clique em **"Criar rascunho"** no painel ao lado para revisar e publicar a vaga. 🎉`,
         }, 800);
+        setCanCreateDraft(true);
       }, 0);
     };
 
@@ -1108,6 +1211,7 @@ export function JobCreation() {
           type: 'agent',
           content: 'Excelente! Coletei todas as informações principais. Agora você pode criar o rascunho da vaga!',
         }, 1500);
+        setCanCreateDraft(true);
       }
     }, 500);
   };
@@ -1479,6 +1583,7 @@ export function JobCreation() {
         content: 'Perfeito! Dados salvos. Você possui todas as informações para criar o rascunho da vaga.',
         hasDraftButton: true,
       } as any]);
+      setCanCreateDraft(true);
     }, 400);
   };
 
@@ -1751,6 +1856,7 @@ export function JobCreation() {
     setShowTour(false);
   };
 
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* TourGuide is scoped to this route — unmounts cleanly on navigation */}
@@ -1763,68 +1869,99 @@ export function JobCreation() {
         )}
       </AnimatePresence>
       
-      <TopBar />
-      
+      <TopBar isDraftMode={isDraftView} isSaving={isSaving} />
+
       <div className="flex-1 flex overflow-hidden">
-        {/* ── InfoPanel — LEFT side ── */}
-        <AnimatePresence>
-          {showInfoPanel && !isDraftView && (
-            <div data-tour="info-panel" className="h-full flex-shrink-0">
-              <InfoPanel 
-                jobData={jobData}
-                metadata={jobDataMetadata}
-                jdAnalysis={jdAnalysis}
-                onCreateDraft={handleCreateDraftClick}
-                processingStep={processingStep}
-                completedSteps={completedSteps}
-                hasProcessingCompleted={hasProcessingCompleted}
-                onDraftButtonHover={setRobotLookingAtDraft}
-                collapsed={infoPanelCollapsed}
-                onToggleCollapsed={() => setInfoPanelCollapsed(v => !v)}
-                onOpenRecursos={(key) => { setShowRecursosPanel(true); if (key) setRecursosExpandedKey(key); }}
-              />
-            </div>
-          )}
-        </AnimatePresence>
+        {/* ── Step 1: InfoPanel + Chat + Right panel + footer ── */}
+        {!isDraftView && (
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <div className="flex-1 flex overflow-hidden min-h-0">
+            <AnimatePresence>
+              {showInfoPanel && (
+                <div data-tour="info-panel" className="h-full flex-shrink-0">
+                  <InfoPanel
+                    jobData={jobData}
+                    metadata={jobDataMetadata}
+                    jdAnalysis={jdAnalysis}
+                    onCreateDraft={handleCreateDraftClick}
+                    processingStep={processingStep}
+                    completedSteps={completedSteps}
+                    hasProcessingCompleted={hasProcessingCompleted}
+                    onDraftButtonHover={setRobotLookingAtDraft}
+                    collapsed={infoPanelCollapsed}
+                    onToggleCollapsed={() => setInfoPanelCollapsed(v => !v)}
+                    onOpenRecursos={(key) => { setShowRecursosPanel(true); if (key) setRecursosExpandedKey(key); }}
+                  />
+                </div>
+              )}
+            </AnimatePresence>
 
-        {/* ── Chat — CENTER ── */}
-        <ChatArea 
-          messages={messages} 
-          onOptionClick={handleOptionClick}
-          onSendMessage={handleSendMessage}
-          onSendAudio={handleSendAudio}
-          isTyping={isTyping}
-          inputPlaceholder={inputPlaceholder}
-          isDraftView={isDraftView}
-          onToggleProcessing={handleToggleProcessing}
-          onStepChange={handleStepChange}
-          robotState={robotLookingAtDraft ? 'looking-right' : 'idle'}
-          onOpenRecursos={(key) => { setShowRecursosPanel(true); if (key) setRecursosExpandedKey(key); }}
-        />
-
-        {/* ── Right panel — recursos OR form ── */}
-        <AnimatePresence>
-          {formPanel && !isDraftView && (
-            <RightFormPanel
-              key="form-panel"
-              title={formPanel.title}
-              onClose={() => setFormPanel(null)}
-            >
-              {formPanel.node}
-            </RightFormPanel>
-          )}
-          {showRecursosPanel && jdAnalysis && !isDraftView && !formPanel && (
-            <RecursosPanel
-              key="recursos-panel"
-              analysis={jdAnalysis}
-              titulo={jobData.titulo}
-              onClose={() => setShowRecursosPanel(false)}
-              expandedKey={recursosExpandedKey}
+            <ChatArea
+              messages={messages}
+              onOptionClick={handleOptionClick}
+              onSendMessage={handleSendMessage}
+              onSendAudio={handleSendAudio}
+              isTyping={isTyping}
+              inputPlaceholder={inputPlaceholder}
+              isDraftView={false}
+              onToggleProcessing={handleToggleProcessing}
+              onStepChange={handleStepChange}
+              robotState={robotLookingAtDraft ? 'looking-right' : 'idle'}
+              onOpenRecursos={(key) => { setShowRecursosPanel(true); if (key) setRecursosExpandedKey(key); }}
             />
-          )}
-        </AnimatePresence>
 
-        {isDraftView && <DraftView jobData={jobData} jobDataMetadata={jobDataMetadata} highlightedCard={highlightedCard} />}
+            <AnimatePresence>
+              {formPanel && (
+                <RightFormPanel
+                  key="form-panel"
+                  title={formPanel.title}
+                  onClose={() => setFormPanel(null)}
+                >
+                  {formPanel.node}
+                </RightFormPanel>
+              )}
+              {showRecursosPanel && jdAnalysis && !formPanel && (
+                <RecursosPanel
+                  key="recursos-panel"
+                  analysis={jdAnalysis}
+                  titulo={jobData.titulo}
+                  onClose={() => setShowRecursosPanel(false)}
+                  expandedKey={recursosExpandedKey}
+                />
+              )}
+            </AnimatePresence>
+            </div>
+
+            {/* ── Screen 1 footer ── */}
+            <div className="flex-shrink-0 bg-white border-t border-gray-200 px-8 h-16 flex items-center z-10">
+              <button
+                onClick={() => navigate(-1)}
+                className="text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors mr-auto"
+              >
+                Cancelar
+              </button>
+
+              <button
+                onClick={canCreateDraft ? handleCreateDraftClick : undefined}
+                disabled={!canCreateDraft}
+                className="px-4 py-2 rounded-md text-sm font-medium bg-purple-600 text-white hover:bg-purple-700 transition-colors disabled:cursor-not-allowed"
+                style={{ opacity: canCreateDraft ? 1 : 0.4 }}
+              >
+                Criar rascunho
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 2: DraftView (full width) ── */}
+        {isDraftView && (
+          <DraftView
+            jobData={jobData}
+            jobDataMetadata={jobDataMetadata}
+            highlightedCard={highlightedCard}
+            onSavingChange={setIsSaving}
+          />
+        )}
       </div>
     </div>
   );

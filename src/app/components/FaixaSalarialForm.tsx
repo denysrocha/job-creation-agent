@@ -5,7 +5,7 @@ interface FaixaSalarialFormProps {
   onSubmit: (salarioMin: string, salarioMax: string, tipoContrato: string) => void;
 }
 
-const tipoContratoOptions = ["CLT", "PJ", "Estágio"];
+const tipoContratoOptions = ["CLT", "PJ", "Contrato temporário", "Associado", "Autônomo", "Cooperado", "Estágio", "Menor aprendiz"];
 
 // Função para formatar valor como moeda brasileira
 const formatCurrency = (value: string) => {

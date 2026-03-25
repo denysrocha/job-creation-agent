@@ -18,7 +18,7 @@ interface QuestoesEstruturaisFormProps {
 }
 
 const modelosTrabalho = ['Remoto', 'Presencial', 'Híbrido'];
-const tiposContrato = ['CLT', 'PJ', 'Estágio'];
+const tiposContrato = ['CLT', 'PJ', 'Contrato temporário', 'Associado', 'Autônomo', 'Cooperado', 'Estágio', 'Menor aprendiz'];
 const needsLocation = (m: string) => m === 'Presencial' || m === 'Híbrido';
 
 const estadosBR = [

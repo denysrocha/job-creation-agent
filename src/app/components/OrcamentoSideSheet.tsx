@@ -31,9 +31,10 @@ interface OrcamentoSideSheetProps {
   data: JobData;
   onClose: () => void;
   onSave: (updatedData: Partial<JobData>) => void;
+  openAutomationDirectly?: boolean;
 }
 
-export function OrcamentoSideSheet({ data, onClose, onSave }: OrcamentoSideSheetProps) {
+export function OrcamentoSideSheet({ data, onClose, onSave, openAutomationDirectly }: OrcamentoSideSheetProps) {
   const [tipos, setTipos] = useState<string[]>(
     data.tiposContratacao ?? (data.tipoContrato ? [data.tipoContrato] : ['CLT'])
   );
@@ -51,7 +52,7 @@ export function OrcamentoSideSheet({ data, onClose, onSave }: OrcamentoSideSheet
   );
 
   // Automação
-  const [isAutomacaoOpen, setIsAutomacaoOpen] = useState(false);
+  const [isAutomacaoOpen, setIsAutomacaoOpen] = useState(openAutomationDirectly ?? false);
   const [automacaoConfig, setAutomacaoConfig] = useState<any>({});
 
   const toggleTipo = (tipo: string) => {

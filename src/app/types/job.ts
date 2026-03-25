@@ -458,6 +458,9 @@ export interface ChatMessage {
   // Draft button inline
   hasDraftButton?: boolean;
 
+  // Generic inline action button (label + callback)
+  inlineActionButton?: { label: string; onClick: () => void };
+
   // Confirmação de extração round 2 (salário/localização)
   confirmacaoRound2?: {
     tipoContrato: string;

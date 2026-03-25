@@ -145,9 +145,10 @@ interface LocalizacaoSideSheetProps {
   data: JobData;
   onClose: () => void;
   onSave: (updatedData: Partial<JobData>) => void;
+  openAutomationDirectly?: boolean;
 }
 
-export function LocalizacaoSideSheet({ data, onClose, onSave }: LocalizacaoSideSheetProps) {
+export function LocalizacaoSideSheet({ data, onClose, onSave, openAutomationDirectly }: LocalizacaoSideSheetProps) {
   const [modelo, setModelo] = useState<Modelo>(
     (data.modeloTrabalho as Modelo) ?? 'Presencial'
   );
@@ -159,7 +160,7 @@ export function LocalizacaoSideSheet({ data, onClose, onSave }: LocalizacaoSideS
   const [complemento, setComplemento] = useState(data.complementoDisponibilidade ?? '');
 
   // Automação
-  const [isAutomacaoOpen, setIsAutomacaoOpen] = useState(false);
+  const [isAutomacaoOpen, setIsAutomacaoOpen] = useState(openAutomationDirectly ?? false);
   const [automacaoConfig, setAutomacaoConfig] = useState<any>({});
 
   const cidadesDoEstado = ESTADOS_BR[estado] ?? [];
