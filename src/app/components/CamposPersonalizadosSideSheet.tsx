@@ -5,13 +5,12 @@ import { JobData, CampoPersonalizadoVaga } from '../types/job';
 
 // Campos configurados pela organização (mock — viriam de uma API)
 export const CAMPOS_CONFIG: Omit<CampoPersonalizadoVaga, 'valor'>[] = [
-  { id: 'teste-duda',    nome: 'Teste Duda',               tipo: 'text',   obrigatorio: false },
-  { id: 'tipo-vaga',     nome: 'Qual o seu tipo de vaga',  tipo: 'select', obrigatorio: false,
-    opcoes: ['Efetivo', 'Temporário', 'Estágio', 'Trainee', 'Freelancer'] },
-  { id: 'proc-seletivo', nome: 'Tipo do Processo Seletivo', tipo: 'text',  obrigatorio: true  },
-  { id: 'area',          nome: 'Área',                     tipo: 'text',   obrigatorio: false },
-  { id: 'area2',         nome: 'Area',                     tipo: 'text',   obrigatorio: false },
-  { id: 'centro-custo',  nome: 'Centro de Custo',          tipo: 'text',   obrigatorio: true  },
+  { id: 'projeto',        nome: 'Projeto',          tipo: 'text', obrigatorio: true  },
+  { id: 'centro-custo',   nome: 'Centro de custo',  tipo: 'text', obrigatorio: true  },
+  { id: 'time',           nome: 'Time',             tipo: 'text', obrigatorio: false },
+  { id: 'tempo-projeto',  nome: 'Tempo do projeto', tipo: 'text', obrigatorio: false },
+  { id: 'area',           nome: 'Área',             tipo: 'text', obrigatorio: true  },
+  { id: 'squad',          nome: 'Squad',            tipo: 'text', obrigatorio: false },
 ];
 
 interface CamposPersonalizadosSideSheetProps {
@@ -33,8 +32,11 @@ export function CamposPersonalizadosSideSheet({ data, onClose, onSave }: CamposP
     setCampos((prev) => prev.map((c) => (c.id === id ? { ...c, valor } : c)));
   };
 
+  const missingRequired = campos.filter(c => c.obrigatorio && !c.valor.trim());
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (missingRequired.length > 0) return;
     onSave({ camposPersonalizados: campos });
     onClose();
   };
@@ -96,29 +98,35 @@ export function CamposPersonalizadosSideSheet({ data, onClose, onSave }: CamposP
                     </label>
 
                     {/* Input ou Select */}
-                    {campo.tipo === 'select' ? (
-                      <div className="relative">
-                        <select
+                    {(() => {
+                      const isEmpty = campo.obrigatorio && !campo.valor.trim();
+                      const borderCls = isEmpty
+                        ? 'border-red-300 focus:ring-red-200 focus:border-red-400'
+                        : 'border-gray-300 focus:ring-purple-500 focus:border-transparent';
+                      return campo.tipo === 'select' ? (
+                        <div className="relative">
+                          <select
+                            value={campo.valor}
+                            onChange={(e) => setValue(campo.id, e.target.value)}
+                            className={`w-full appearance-none px-4 py-2.5 border rounded-md text-[13px] bg-white text-gray-700 focus:outline-none focus:ring-2 pr-9 ${borderCls}`}
+                          >
+                            <option value="">Selecione uma opção</option>
+                            {campo.opcoes?.map((op) => (
+                              <option key={op} value={op}>{op}</option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                        </div>
+                      ) : (
+                        <input
+                          type="text"
                           value={campo.valor}
                           onChange={(e) => setValue(campo.id, e.target.value)}
-                          className="w-full appearance-none px-4 py-2.5 border border-gray-300 rounded-md text-[13px] bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent pr-9"
-                        >
-                          <option value="">Selecione uma opção</option>
-                          {campo.opcoes?.map((op) => (
-                            <option key={op} value={op}>{op}</option>
-                          ))}
-                        </select>
-                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                      </div>
-                    ) : (
-                      <input
-                        type="text"
-                        value={campo.valor}
-                        onChange={(e) => setValue(campo.id, e.target.value)}
-                        placeholder="Informe um valor"
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-md text-[13px] text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      />
-                    )}
+                          placeholder={campo.obrigatorio ? 'Obrigatório' : 'Informe um valor'}
+                          className={`w-full px-4 py-2.5 border rounded-md text-[13px] text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 ${borderCls}`}
+                        />
+                      );
+                    })()}
                   </div>
                 ))}
               </div>
@@ -135,7 +143,8 @@ export function CamposPersonalizadosSideSheet({ data, onClose, onSave }: CamposP
               </button>
               <button
                 type="submit"
-                className="px-6 py-2 bg-purple-600 text-white rounded-md text-[13px] hover:bg-purple-700 transition-colors font-medium"
+                disabled={missingRequired.length > 0}
+                className="px-6 py-2 bg-purple-600 text-white rounded-md text-[13px] hover:bg-purple-700 transition-colors font-medium disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Salvar alterações
               </button>

@@ -305,16 +305,16 @@ export function CamposFaltantesForm({ onSubmit, initialRequisicao, initialPosico
   };
 
   return (
-    <div className="mt-3 space-y-3 max-w-xl">
+    <div className="space-y-4">
 
       {/* ── Grupo 1: Avaliadores + Gestor ──────────────────────────────────── */}
       {!onlyCamposPersonalizados && (
-        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
+        <>
           <div>
             <FieldLabel optional>Avaliadores responsáveis</FieldLabel>
             <AvaliadoresInput avaliadores={avaliadores} onChange={setAvaliadores} />
           </div>
-          <div className="border-t border-gray-100 pt-4">
+          <div>
             <FieldLabel optional>Gestor responsável</FieldLabel>
             <input
               type="text"
@@ -324,25 +324,23 @@ export function CamposFaltantesForm({ onSubmit, initialRequisicao, initialPosico
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
           </div>
-        </div>
+        </>
       )}
 
       {/* ── Grupo 2: Requisição ─────────────────────────────────────────────── */}
       {!onlyCamposPersonalizados && (
-        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
-          <div>
-            <FieldLabel optional>Requisição</FieldLabel>
-            <RequisicoesInput
-              requisicoes={requisicoes}
-              onChange={setRequisicoes}
-              extraOption={initialRequisicao}
-            />
-          </div>
+        <div>
+          <FieldLabel optional>Requisição</FieldLabel>
+          <RequisicoesInput
+            requisicoes={requisicoes}
+            onChange={setRequisicoes}
+            extraOption={initialRequisicao}
+          />
         </div>
       )}
 
       {/* ── Campos personalizados ───────────────────────────────────────────── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
+      <div>
         <FieldLabel optional>Campos personalizados</FieldLabel>
         <CamposPersonalizadosInput
           campos={camposPersonalizados}
@@ -354,7 +352,7 @@ export function CamposFaltantesForm({ onSubmit, initialRequisicao, initialPosico
       <button
         type="button"
         onClick={handleSubmit}
-        className="w-full py-2.5 rounded-xl text-sm bg-purple-600 hover:bg-purple-700 text-white transition-colors"
+        className="w-full py-2.5 rounded-lg text-sm bg-purple-600 hover:bg-purple-700 text-white transition-colors font-medium"
       >
         Confirmar
       </button>

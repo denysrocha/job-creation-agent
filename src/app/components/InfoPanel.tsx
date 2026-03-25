@@ -24,10 +24,9 @@ interface InfoPanelProps {
 // ── Derived value helpers ─────────────────────────────────────────────────────
 
 const deriveFaixaSalarial = (jobData: JobData): string => {
-  const { salarioMinimo, salarioMaximo, tipoContrato } = jobData;
+  const { salarioMinimo, salarioMaximo } = jobData;
   if (!salarioMinimo && !salarioMaximo) return "";
-  const range = [salarioMinimo, salarioMaximo].filter(Boolean).join(" – ");
-  return tipoContrato ? `${range} (${tipoContrato})` : range;
+  return [salarioMinimo, salarioMaximo].filter(Boolean).join(" – ");
 };
 
 const deriveCamposPersonalizados = (jobData: JobData): string => {
@@ -114,21 +113,7 @@ export function InfoPanel({
           ? truncate(d.descricao.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim())
           : "",
     },
-    {
-      key: "recrutador",
-      label: "Recrutador responsável",
-      getValue: (d) => d.recrutador ?? CURRENT_USER,
-      alwaysFilled: true,
-    },
-    {
-      key: "avaliadores",
-      label: "Avaliadores responsáveis",
-      getValue: (d) =>
-        Array.isArray(d.avaliadores) && d.avaliadores.length > 0
-          ? d.avaliadores.join(", ")
-          : "",
-    },
-    { key: "gestor", label: "Gestor responsável", getValue: (d) => d.gestor ?? "" },
+    { key: "tipoContrato", label: "Tipo de contratação", getValue: (d) => d.tipoContrato ?? "" },
     { key: "faixaSalarial", label: "Faixa salarial", getValue: (d) => deriveFaixaSalarial(d) },
     { key: "localizacao", label: "Localização", getValue: (d) => d.localizacao ?? "" },
     { key: "modeloTrabalho", label: "Modelo de trabalho", getValue: (d) => d.modeloTrabalho ?? "" },
@@ -159,12 +144,22 @@ export function InfoPanel({
 
   if (collapsed) {
     return (
+      <div className="relative h-full flex-shrink-0" style={{ width: 56 }}>
+        {/* Floating toggle button — always visible when collapsed */}
+        <button
+          onClick={onToggleCollapsed}
+          title="Expandir painel"
+          className="absolute top-[88px] -right-4 z-20 w-8 h-8 rounded-full bg-purple-600 shadow-md flex items-center justify-center text-white hover:bg-purple-700 transition-colors"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+
       <motion.div
         initial={{ opacity: 1, width: 56 }}
         animate={{ opacity: 1, width: 56 }}
         exit={{ opacity: 0, width: 0 }}
         transition={{ duration: 0.3 }}
-        className="bg-white border-r border-gray-200 flex flex-col items-center overflow-hidden h-full flex-shrink-0"
+        className="bg-white border-r border-gray-200 flex flex-col items-center overflow-hidden h-full"
         style={{ minWidth: 56 }}
       >
         {/* Quality % */}
@@ -193,31 +188,33 @@ export function InfoPanel({
 
         {/* Spacer */}
         <div className="flex-1" />
-
-        {/* Expand button — chevron points RIGHT (expand toward center) */}
-        <button
-          onClick={onToggleCollapsed}
-          className="mb-6 w-8 h-8 rounded-md flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-          title="Expandir painel"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
       </motion.div>
+      </div>
     );
   }
 
   // ── Expanded state ────────────────────────────────────────────────────────
 
   return (
+    <div className="relative group h-full flex-shrink-0" style={{ width: 320 }}>
+      {/* Floating toggle button — hidden, appears on panel hover */}
+      <button
+        onClick={onToggleCollapsed}
+        title="Recolher painel"
+        className="absolute top-[88px] -right-4 z-20 w-8 h-8 rounded-full bg-purple-600 shadow-md flex items-center justify-center text-white hover:bg-purple-700 opacity-0 group-hover:opacity-100 transition-all"
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+
     <motion.div
       initial={{ opacity: 1, width: 320 }}
       animate={{ opacity: 1, width: 320 }}
       exit={{ opacity: 0, width: 0 }}
       transition={{ duration: 0.3 }}
-      className="bg-white border-r border-gray-200 flex flex-col overflow-hidden h-full flex-shrink-0"
+      className="bg-white border-r border-gray-200 flex flex-col overflow-hidden h-full"
       style={{ minWidth: 0 }}
     >
-      <div className="p-5 flex-1 overflow-y-auto">
+      <div className="px-5 pt-5 pb-5 flex-1 overflow-y-auto">
 
         {/* ── AFTER BUM: quality + resources button ── */}
         {bumHappened && (
@@ -257,7 +254,7 @@ export function InfoPanel({
             >
               <span className="text-purple-500 text-base leading-none flex-shrink-0">✦</span>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-purple-800" style={{ fontWeight: 600 }}>
+                <p className="text-base text-purple-800" style={{ fontWeight: 600 }}>
                   Recursos configurados
                 </p>
                 <p className="text-[11px] text-purple-500 truncate">
@@ -274,7 +271,7 @@ export function InfoPanel({
         {/* Fields header */}
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-xs uppercase tracking-wide text-gray-500" style={{ fontWeight: 600 }}>
-            Informações obrigatórias
+            Informações básicas
           </h2>
           <span className="text-xs text-gray-400">
             {filledCount}/{fields.length}
@@ -282,7 +279,7 @@ export function InfoPanel({
         </div>
 
         {/* Fields list */}
-        <div className="space-y-4">
+        <div className="space-y-6">
           {fields.map((field) => {
             const displayValue = field.getValue(jobData);
             const isFilled = displayValue !== "";
@@ -355,17 +352,7 @@ export function InfoPanel({
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="px-5 pt-3 pb-4 border-t border-gray-100 flex items-center justify-end">
-        {/* Collapse button — chevron points LEFT (collapse away from center) */}
-        <button
-          onClick={onToggleCollapsed}
-          className="w-9 h-9 flex-shrink-0 rounded-md flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-          title="Recolher painel"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-      </div>
     </motion.div>
+    </div>
   );
 }

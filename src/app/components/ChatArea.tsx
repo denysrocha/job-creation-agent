@@ -3,7 +3,7 @@ import { ChatMessage } from "./ChatMessage";
 import { Textarea } from "./ui/textarea";
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Mic, Send, Square, X } from "lucide-react";
+import { Mic, Send, Square, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { RobotPresence, RobotState } from "./RobotPresence";
 
 interface ChatAreaProps {
@@ -18,6 +18,8 @@ interface ChatAreaProps {
   onStepChange?: (step: string) => void;
   robotState?: RobotState;
   onOpenRecursos?: (key?: string) => void;
+  chatCollapsed?: boolean;
+  onToggleChatCollapsed?: () => void;
 }
 
 // Static waveform bars for preview UI
@@ -60,7 +62,7 @@ function RecordingWaveform() {
 export function ChatArea({
   messages, onOptionClick, onSendMessage, onSendAudio, isTyping,
   inputPlaceholder, isDraftView, onToggleProcessing, onStepChange,
-  robotState, onOpenRecursos,
+  robotState, onOpenRecursos, chatCollapsed, onToggleChatCollapsed,
 }: ChatAreaProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<HTMLDivElement>(null);
@@ -172,17 +174,34 @@ export function ChatArea({
   const hasActiveProcessing = messages.some(m => (m as any).isProcessing);
 
   return (
+    <div className={`relative h-full flex-shrink-0 ${isDraftView ? 'group' : ''}`} style={isDraftView ? { width: chatCollapsed ? 56 : 320 } : { flex: '1 1 0%' }}>
+      {/* Floating toggle button — only in DraftView */}
+      {isDraftView && onToggleChatCollapsed && (
+        <button
+          onClick={onToggleChatCollapsed}
+          title={chatCollapsed ? 'Expandir chat' : 'Recolher chat'}
+          className={`absolute top-[88px] -right-4 z-20 w-8 h-8 rounded-full bg-purple-600 shadow-md flex items-center justify-center text-white hover:bg-purple-700 transition-all ${chatCollapsed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+        >
+          {chatCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </button>
+      )}
     <motion.div
       initial={false}
       animate={{
-        width: isDraftView ? '30%' : 'auto',
-        flex: isDraftView ? '0 0 30%' : '1 1 0%',
+        width: isDraftView ? (chatCollapsed ? 56 : 320) : 'auto',
+        flex: isDraftView ? 'none' : '1 1 0%',
       }}
-      transition={{ duration: 0.4, delay: isDraftView ? 0.3 : 0 }}
-      className={`flex flex-col bg-white ${isDraftView ? 'border-r border-gray-200' : ''}`}
+      transition={{ duration: 0.3 }}
+      className={`flex flex-col bg-white h-full overflow-hidden ${isDraftView ? 'border-r border-gray-200' : ''}`}
       data-tour="chat-area"
     >
-      {/* Messages */}
+      {isDraftView && chatCollapsed ? (
+        /* Collapsed state — robot only */
+        <div className="flex-1 flex items-center justify-center">
+          <RobotPresence state={robotState || 'idle'} size={36} />
+        </div>
+      ) : (
+      <>
       <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-visible">
         <div className={`mx-auto px-6 py-8 min-h-full flex flex-col ${isDraftView ? 'max-w-none' : 'max-w-4xl'} overflow-visible`}>
           {messages.map((message, index) => (
@@ -326,6 +345,9 @@ export function ChatArea({
           )}
         </div>
       </div>
+      </>
+      )}
     </motion.div>
+    </div>
   );
 }

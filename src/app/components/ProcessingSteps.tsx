@@ -161,8 +161,8 @@ export function ProcessingSummary({ steps, isExpanded, onToggle }: ProcessingSum
         onClick={onToggle}
         className="flex items-center gap-1.5 text-gray-400 hover:text-gray-500 transition-colors group"
       >
-        <span className="text-green-500 text-xs">✓</span>
-        <span className="text-xs">
+        <span className="text-green-500 text-sm">✓</span>
+        <span className="text-sm">
           Processamento concluído ({steps.length} etapas)
         </span>
         <motion.svg
